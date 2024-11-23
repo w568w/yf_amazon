@@ -1,0 +1,11 @@
+services:
+  pgsql:
+    image: docker.io/library/postgres:alpine
+    restart: always
+    shm_size: 128mb
+    volumes:
+      - ./data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_PASSWORD: example
+    ports:
+      - 5432:5432
