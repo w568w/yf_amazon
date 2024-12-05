@@ -87,6 +87,11 @@ We conducted two types of vector search:
 - Searching for one vector in a given range: `SELECT * FROM ratings WHERE doc_embedding <=> '[1,2,3] > 0.5 LIMIT 1`
 - Searching for the nearest vector: `SELECT * FROM ratings ORDER BY doc_embedding <-> '[1,2,3]' LIMIT 1`
 
+With two different index types:
+
+- IVFFlat: 倒排文件索引。将向量空间划分为多个簇，每个簇都有一个中心点。在搜索时，系统会首先找到最接近查询向量的簇，然后仅在该簇内进行搜索。构建更快，使用内存更少，但查询速度较慢，且精度较低。
+- HNSW: 分层导航小世界图（Hierarchical Navigable Small World），是一种基于图的索引结构。通过构建多层图结构，将向量表示为图中的节点，并在不同层次间维护连接。搜索过程从较高层开始，逐层向下导航到目标层，从而大幅提高搜索速度。构建更慢，使用内存更多，但查询速度更快，且精度较高。
+
 | **索引类型**       | **任务**                        | **平均时间 (mean)** | **标准差 (std)**   | **备注**                                   |
 |--------------------|--------------------------------|---------------------|--------------------|------------------------------------------|
 | 不加任何索引       | Searching for one vector in given range | 0.050670s           | 0.003632s          | 无索引                                   |
