@@ -1,2 +1,4 @@
 deployments/*/data
 data/*.csv
+*.pkl
+*.npy

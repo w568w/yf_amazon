@@ -76,3 +76,22 @@ The equivalent SQL query is `DELETE FROM products WHERE product_id BETWEEN {star
 The results show that PostgreSQL is slower than MongoDB by several orders of magnitude. This might be due to the fact that the embedded approach in MongoDB is more efficient than the relational approach in PostgreSQL for such deletion, since PostgreSQL needs to do several cascade operations to delete the records in the `ratings` table and ensure the consistency of the database.
 
 ![Delete Records](./delete_record.png)
+
+## Vector Search (on PostgreSQL)
+To test the natural language search performance, we tested PostgreSQL's performance when performing vector search using the `pgvector` extension (<https://github.com/pgvector/pgvector>), which is the most popular and battle-tested extension for vector search in PostgreSQL.
+
+We used the `pgvector` extension to create a vector index on the `doc_embedding` column in the `ratings` table.
+
+We conducted two types of vector search: 
+
+- Searching for one vector in a given range: `SELECT * FROM ratings WHERE doc_embedding <=> '[1,2,3] > 0.5 LIMIT 1`
+- Searching for the nearest vector: `SELECT * FROM ratings ORDER BY doc_embedding <-> '[1,2,3]' LIMIT 1`
+
+| **索引类型**       | **任务**                        | **平均时间 (mean)** | **标准差 (std)**   | **备注**                                   |
+|--------------------|--------------------------------|---------------------|--------------------|------------------------------------------|
+| 不加任何索引       | Searching for one vector in given range | 0.050670s           | 0.003632s          | 无索引                                   |
+|                    | Searching for the nearest vector       | 92.953029s          | 13.785445s         | 无索引                                   |
+| **加入 IVFFlat**   | Searching for one vector in given range | 0.052054s           | 0.008693s          | 构建更快，使用内存更少，但查询速度较慢    |
+|                    | Searching for the nearest vector       | 0.273401s           | 0.171082s          | 构建更快，使用内存更少，但查询速度较慢    |
+| **加入 HNSW**      | Searching for one vector in given range | 0.056273s           | 0.011216s          | 构建更慢，使用内存更多，但查询速度更快    |
+|                    | Searching for the nearest vector       | 0.231462s           | 0.002510s          | 构建更慢，使用内存更多，但查询速度更快    |
