@@ -100,3 +100,21 @@ With two different index types:
 |                    | Searching for the nearest vector       | 0.273401s           | 0.171082s          | 构建更快，使用内存更少，但查询速度较慢    |
 | **加入 HNSW**      | Searching for one vector in given range | 0.056273s           | 0.011216s          | 构建更慢，使用内存更多，但查询速度更快    |
 |                    | Searching for the nearest vector       | 0.231462s           | 0.002510s          | 构建更慢，使用内存更多，但查询速度更快    |
+
+## Vector Search (on MongoDB)
+
+We also tested MongoDB's performance when performing vector search using the `MongoDB Vector Search` feature.
+
+Since MongoDB's vector search is only available in its cloud service MongoDB Atlas, we use a MongoDB M10 Cluster in MongoDB Atlas to test the performance.
+
+We created a vector index on the `doc_embedding` column in the `ratings` collection.
+
+We conducted ANN and ENN search to search for the nearest neighbors.
+
+The results are:
+
+| **任务** | **平均时间 (mean)** | **标准差 (std)** | **备注** |
+|--------|---------------------|--------------------|----------|
+| ANN    | 0.187287s           | 0.096194s          |          |
+| ENN    | 0.208841s           | 0.010689s          |          |
+
