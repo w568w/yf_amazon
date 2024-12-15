@@ -32,16 +32,32 @@ conn = psycopg.connect("postgresql://postgres:example@localhost:5432/postgres")
 SQL_CREATE_EXTENSIONS = """
 CREATE EXTENSION IF NOT EXISTS vector;
 ALTER TABLE ratings ADD COLUMN IF NOT EXISTS doc_embedding vector(1536);
+ALTER TABLE products ADD COLUMN IF NOT EXISTS title_embedding vector(1536);
 """
 
 SQL_CREATE_INDEX_IVFFLAT = """
-SET maintenance_work_mem TO '256MB';
+SET maintenance_work_mem TO '8GB';
 CREATE INDEX ON ratings USING ivfflat (doc_embedding vector_cosine_ops) WITH (lists = 100);
 """
 
 SQL_CREATE_INDEX_HNSW = """
-SET max_parallel_maintenance_workers = 7;
+SET max_parallel_maintenance_workers = 8;
 CREATE INDEX ON ratings USING hnsw (doc_embedding vector_cosine_ops);
+"""
+
+SQL_CREATE_VIEW_USERS = """
+CREATE MATERIALIZED VIEW users (user_id, user_embedding) AS
+SELECT user_id, AVG(doc_embedding)::vector(1536) FROM ratings WHERE doc_embedding IS NOT NULL GROUP BY user_id;
+"""
+
+SQL_CREATE_INDEX_HNSW_PRODUCTS = """
+SET max_parallel_maintenance_workers = 8;
+CREATE INDEX IF NOT EXISTS products_title_embedding_hnsw_idx ON products USING hnsw (title_embedding vector_cosine_ops);
+"""
+
+SQL_CREATE_INDEX_HNSW_USERS = """
+SET max_parallel_maintenance_workers = 8;
+CREATE INDEX IF NOT EXISTS users_user_embedding_hnsw_idx ON users USING hnsw (user_embedding vector_cosine_ops);
 """
 
 client = pymongo.MongoClient(
@@ -50,19 +66,25 @@ db = client["amazon"]
 collection = db["products"]
 
 
-def export(limit=1000000):
+def export_ratings(limit=1000000):
     with conn.cursor() as cur:
         # get rating_id, title, comment from ratings
         cur.execute("SELECT rating_id, title, comment FROM ratings LIMIT %s", (limit,))
         rows = cur.fetchall()
         return rows
 
+def export_products(limit=1000000):
+    with conn.cursor() as cur:
+        # get product_id, name from products
+        cur.execute("SELECT product_id, name FROM products LIMIT %s", (limit,))
+        rows = cur.fetchall()
+        return rows
 
 def vector2str(vector):
     return f"[{','.join(map(str, vector))}]"
 
 
-def import_data(rating_tuples, vectors):
+def import_ratings(rating_tuples, vectors):
     with conn.pipeline():
         with conn.cursor() as cur:
             for rating_tuple, vector in tqdm(
@@ -72,6 +94,13 @@ def import_data(rating_tuples, vectors):
                     "UPDATE ratings SET doc_embedding = %s WHERE rating_id = %s",
                     (vector2str(vector), rating_tuple[0]),
                 )
+        conn.commit()
+
+def import_products(product_tuples, vectors):
+    with conn.pipeline():
+        with conn.cursor() as cur:
+            for product_tuple, vector in tqdm(zip(product_tuples, vectors), total=len(product_tuples)):
+                cur.execute("UPDATE products SET title_embedding = %s WHERE product_id = %s", (vector2str(vector), product_tuple[0]))
         conn.commit()
 
 
@@ -133,22 +162,24 @@ def search_nearest_vector_no_index():
     return benchmark(query)
 
 def main():
-    # with conn.cursor() as cur:
-    #     cur.execute(SQL_CREATE_INDEX_HNSW)
-    #     conn.commit()
+    with conn.cursor() as cur:
+        cur.execute(SQL_CREATE_VIEW_USERS)
+        conn.commit()
 
-    # rows = export()
+    # rows = export_products(6000000)
+    # with open("products.pkl", "wb") as f:
+    #     pickle.dump(rows, f)
     # with open("ratings.pkl", "wb") as f:
     #     pickle.dump(rows, f)
-    # with open("ratings.pkl", "rb") as f:
+    # with open("products.pkl", "rb") as f:
     #     rows = pickle.load(f)
-    # with open("vectors.npy", "rb") as f:
+    # with open("product_embeddings.npy", "rb") as f:
     #     vectors = np.load(f)
-    # import_data(rows, vectors)
+    # import_products(rows, vectors)
     # import_data_mongodb(rows, vectors)
-    search_vector_in_range()
-    search_nearest_vector()
-    search_nearest_vector_no_index()
+    # search_vector_in_range()
+    # search_nearest_vector()
+    # search_nearest_vector_no_index()
 
 
 if __name__ == "__main__":
