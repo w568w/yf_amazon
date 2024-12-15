@@ -12,7 +12,7 @@ import requests
 # 全局变量用于存储数据库连接
 db_connection = None
 model = None
-es_host = "http://localhost:9200"
+es_host = "http://localhost:9200"  # TODO: 填入 ElasticSearch 主机地址
 app = FastAPI()
 
 
@@ -88,10 +88,26 @@ def get_comments_psql(keyword, product_id, exact=False, top_k=100, db_connection
 
 
 def get_product_elastic(
-    keyword, top_k=100, es_host="http://localhost:9200", index="products"
+    keyword,
+    exact=False,
+    top_k=100,
+    es_host="http://localhost:9200",
+    index="products_with_amazon",
 ):
     # 精确匹配 - 使用 `match` 或 `term` 查询
     query = {"query": {"match": {"name": keyword}}, "size": top_k}
+    if not exact:
+        query = {
+            "query": {
+                "match": {
+                    "name": {
+                        "query": keyword,  # 你要搜索的关键字
+                        "fuzziness": "AUTO",  # fuzziness 可以设为 AUTO 或者数字
+                    }
+                }
+            },
+            "size": top_k,
+        }
 
     # 发送请求到 ElasticSearch
     response = requests.post(f"{es_host}/{index}/_search", json=query)
@@ -99,46 +115,12 @@ def get_product_elastic(
     # 解析返回结果
     if response.status_code == 200:
         hits = response.json().get("hits", {}).get("hits", [])
+
         return [
             {
                 "name": hit["_source"]["name"],
-                "product_id": hit["_source"]["product_id"],
-                "amazon_id": hit["_source"].get("amazon_id"),
-            }
-            for hit in hits
-        ]
-    else:
-        raise Exception(
-            f"Error from ElasticSearch: {response.status_code}, {response.text}"
-        )
-
-
-def get_comments_elastic(
-    keyword, product_id, top_k=100, es_host="http://localhost:9200", index="ratings"
-):
-    query = {
-        "query": {
-            "bool": {
-                "must": [
-                    {"term": {"product_id": product_id}},
-                    {"multi_match": {"query": keyword, "fields": ["title", "comment"]}},
-                ]
-            }
-        },
-        "size": top_k,
-    }
-    response = requests.post(f"{es_host}/{index}/_search", json=query)
-
-    if response.status_code == 200:
-        hits = response.json().get("hits", {}).get("hits", [])
-        return [
-            {
-                "product_id": hit["_source"]["product_id"],
-                "user_id": hit["_source"]["user_id"],
-                "rating": hit["_source"]["rating"],
-                "timestamp": hit["_source"]["timestamp"],
-                "title": hit["_source"]["title"],
-                "comment": hit["_source"]["comment"],
+                "product_id": hit["_source"]["productId"],
+                "amazon_id": hit["_source"].get("amazonId"),
             }
             for hit in hits
         ]
@@ -211,6 +193,7 @@ def search(
     es_host=Depends(get_es_host),
 ):
     assert backend in ["psql", "elastic"]
+    assert not (backend == "elastic" and product_id != -1)
     if backend == "psql":
         return (
             get_product_psql(keyword, exact, top_k, db_connection)
@@ -218,11 +201,7 @@ def search(
             else get_comments_psql(keyword, product_id, exact, top_k, db_connection)
         )
     elif backend == "elastic":
-        return (
-            get_product_elastic(keyword, top_k, es_host)
-            if product_id == -1
-            else get_comments_elastic(keyword, product_id, top_k, es_host)
-        )
+        return get_product_elastic(keyword, exact, top_k, es_host)
 
 
 if __name__ == "__main__":
