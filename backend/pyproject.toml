@@ -1,0 +1,22 @@
+[project]
+name = "backend"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "fastapi>=0.115.6",
+    "numpy>=2.2.0",
+    "psycopg[binary]>=3.2.3",
+    "requests>=2.32.3",
+    "sentence-transformers>=3.3.1",
+    "torch",
+    "uvicorn>=0.34.0",
+]
+
+[[tool.uv.index]]
+name = "pytorch"
+url = "https://download.pytorch.org/whl/cpu"
+
+[tool.uv]
+index-strategy = "unsafe-best-match"

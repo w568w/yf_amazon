@@ -1,0 +1,16 @@
+FROM docker.io/debian:stable-slim
+
+# Install uv
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+RUN mkdir -p /app
+RUN uv python install 3.13 && cd /app && uv venv
+
+# Copy app
+COPY . /app
+
+# Install dependencies
+WORKDIR /app
+RUN uv sync --no-cache
+
+# Run app
+CMD ["uv", "run", "python", "backend.py"]

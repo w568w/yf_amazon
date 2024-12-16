@@ -1,7 +1,7 @@
-import psycopg2
+import psycopg
 import numpy as np
 
-def load_product_embeddings(db_connection: psycopg2.extensions.connection, product_ids: list[int]) -> dict[int, np.ndarray]:
+def load_product_embeddings(db_connection: psycopg.Connection, product_ids: list[int]) -> dict[int, np.ndarray]:
     """
     加载指定商品的嵌入向量。
 
@@ -17,7 +17,7 @@ def load_product_embeddings(db_connection: psycopg2.extensions.connection, produ
     return embeddings
 
 
-def find_similar_users(db_connection: psycopg2.extensions.connection, target_user_id: int, top_k: int = 5) -> list[int]:
+def find_similar_users(db_connection: psycopg.Connection, target_user_id: int, top_k: int = 5) -> list[int]:
     """
     查找与目标用户最相似的用户。
 
@@ -41,7 +41,7 @@ def find_similar_users(db_connection: psycopg2.extensions.connection, target_use
     return [row[0] for row in results] 
 
 
-def get_user_embedding(db_connection: psycopg2.extensions.connection, user_id: int) -> np.ndarray | None:
+def get_user_embedding(db_connection: psycopg.Connection, user_id: int) -> np.ndarray | None:
     """
     根据用户的历史购买记录计算用户的嵌入向量。
 
@@ -55,7 +55,7 @@ def get_user_embedding(db_connection: psycopg2.extensions.connection, user_id: i
     return np.array(result[0]) if result else None
 
 
-def recommend_related_embedding(db_connection: psycopg2.extensions.connection, user_id: int, top_k: int = 5)-> list[int]:
+def recommend_related_embedding(db_connection: psycopg.Connection, user_id: int, top_k: int = 5)-> list[int]:
     """
     根据协同过滤为用户推荐商品。
 
@@ -96,7 +96,7 @@ def recommend_related_embedding(db_connection: psycopg2.extensions.connection, u
     return list(recommended_products)[:top_k]  
 
 
-def recommend_related(db_connection: psycopg2.extensions.connection, user_id: int, top_k: int = 5) -> list[int]:
+def recommend_related(db_connection: psycopg.Connection, user_id: int, top_k: int = 5) -> list[int]:
     """
     推荐与用户购买同一商品的其他用户购买的商品。
     
@@ -154,7 +154,7 @@ def recommend_related(db_connection: psycopg2.extensions.connection, user_id: in
     return list(recommended_products)[:top_k]
 
 
-def recommend_embedding(db_connection: psycopg2.extensions.connection, user_id: int, top_k: int=5)-> list[dict]:
+def recommend_embedding(db_connection: psycopg.Connection, user_id: int, top_k: int=5)-> list[dict]:
     """
     根据用户嵌入优化搜索结果。
 
@@ -177,7 +177,7 @@ def recommend_embedding(db_connection: psycopg2.extensions.connection, user_id: 
         products = set(row[0] for row in results)
     return list(products)
 
-def recommend(db_connection: psycopg2.extensions.connection, user_id: int, method: str, top_k: int=5) -> list[int]:
+def recommend(db_connection: psycopg.Connection, user_id: int, method: str, top_k: int=5) -> list[int]:
     if method == "related":
         return recommend_related(db_connection, user_id, top_k)
     elif method == 'related_embedding':

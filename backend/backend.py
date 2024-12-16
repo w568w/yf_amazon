@@ -2,17 +2,21 @@
 from sentence_transformers import SentenceTransformer
 import torch
 import psycopg
-from fastapi import FastAPI, Depends
-from typing import Optional
+from fastapi import FastAPI, Depends, HTTPException
+from typing import List, Optional
 from psycopg.rows import dict_row
 from contextlib import asynccontextmanager
 import uvicorn
 import requests
+import os
+from pydantic import BaseModel
+from recommend.recommend import recommend
 
 # 全局变量用于存储数据库连接
 db_connection = None
 model = None
-es_host = "http://localhost:9200"  # TODO: 填入 ElasticSearch 主机地址
+es_host = os.getenv("ES_HOST", "http://localhost:9200")
+db_url = os.getenv("DB_URL", "postgresql://postgres:example@localhost:5432/postgres")
 app = FastAPI()
 
 
@@ -21,7 +25,7 @@ async def lifespan(app: FastAPI):
     global db_connection
     global model
     db_connection = psycopg.connect(
-        "",  # TODO: 填入数据库连接字符串
+        db_url,
         row_factory=dict_row,  # 返回结果格式为字典
     )
     model = SentenceTransformer("./model", trust_remote_code=True)
@@ -203,6 +207,40 @@ def search(
     elif backend == "elastic":
         return get_product_elastic(keyword, exact, top_k, es_host)
 
+# 请求体的定义
+class RecommendRequest(BaseModel):
+    user_id: int
+    method: str
+    top_k: Optional[int] = 5  # 默认 5 个推荐商品
 
+# 响应体的定义
+class RecommendResponse(BaseModel):
+    user_id: int
+    method: str
+    recommendations: List[int]
+
+@app.post("/recommend", response_model=RecommendResponse)
+async def recommend_api(request: RecommendRequest, db_connection=Depends(get_db)):
+    """
+    POST 接口：根据用户 ID 和推荐方法返回推荐结果。
+    """
+    try:
+        user_id = request.user_id
+        method = request.method
+        top_k = request.top_k
+
+        # 根据 method 调用不同的推荐函数
+        recommendations = recommend(db_connection, user_id, method, top_k)
+
+        # 返回推荐结果
+        return RecommendResponse(
+            user_id=user_id,
+            method=method,
+            recommendations=recommendations
+        )
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
