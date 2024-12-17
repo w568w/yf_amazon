@@ -1,15 +1,18 @@
 # Load model directly
-from sentence_transformers import SentenceTransformer
-import torch
-import psycopg
-from fastapi import FastAPI, Depends, HTTPException
-from typing import List, Optional
-from psycopg.rows import dict_row
-from contextlib import asynccontextmanager
-import uvicorn
-import requests
 import os
+from contextlib import asynccontextmanager
+from typing import List, Optional
+
+import psycopg
+import requests
+import torch
+import uvicorn
+from fastapi import Depends, FastAPI, HTTPException
+from psycopg.rows import dict_row
 from pydantic import BaseModel
+from sentence_transformers import SentenceTransformer
+
+from cache import cache
 from recommend.recommend import recommend
 
 # 全局变量用于存储数据库连接
@@ -59,6 +62,7 @@ def get_embedding(query_text: str):
     return model.encode([query_text], prompt_name="query")[0]
 
 
+@cache(cache_keys=["keyword", "exact", "top_k"])
 def get_product_psql(keyword, exact=False, top_k=100, db_connection=None):
     with db_connection.cursor() as cur:
         if exact:
@@ -75,6 +79,7 @@ def get_product_psql(keyword, exact=False, top_k=100, db_connection=None):
         return cur.fetchall()
 
 
+@cache(cache_keys=["keyword", "product_id", "exact", "top_k"])
 def get_comments_psql(keyword, product_id, exact=False, top_k=100, db_connection=None):
     with db_connection.cursor() as cur:
         if exact:
@@ -91,6 +96,7 @@ def get_comments_psql(keyword, product_id, exact=False, top_k=100, db_connection
         return cur.fetchall()
 
 
+@cache(cache_keys=["keyword", "exact", "top_k"])
 def get_product_elastic(
     keyword,
     exact=False,
@@ -207,17 +213,20 @@ def search(
     elif backend == "elastic":
         return get_product_elastic(keyword, exact, top_k, es_host)
 
+
 # 请求体的定义
 class RecommendRequest(BaseModel):
     user_id: int
     method: str
     top_k: Optional[int] = 5  # 默认 5 个推荐商品
 
+
 # 响应体的定义
 class RecommendResponse(BaseModel):
     user_id: int
     method: str
     recommendations: List[int]
+
 
 @app.post("/recommend", response_model=RecommendResponse)
 async def recommend_api(request: RecommendRequest, db_connection=Depends(get_db)):
@@ -234,13 +243,13 @@ async def recommend_api(request: RecommendRequest, db_connection=Depends(get_db)
 
         # 返回推荐结果
         return RecommendResponse(
-            user_id=user_id,
-            method=method,
-            recommendations=recommendations
+            user_id=user_id, method=method, recommendations=recommendations
         )
 
     except Exception as e:
+        print("Error in recommend_api:", e)
         raise HTTPException(status_code=500, detail=str(e))
-    
+
+
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
