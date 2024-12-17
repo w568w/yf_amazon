@@ -13,7 +13,7 @@ def load_product_embeddings(db_connection: psycopg.Connection, product_ids: list
         cursor.execute(
             "SELECT product_id, title_embedding FROM products WHERE product_id = ANY(%s)", (product_ids,)
         )
-        embeddings = {row[0]: np.array(row[1]) for row in cursor.fetchall()}
+        embeddings = {row["product_id"]: np.array(row["title_embedding"]) for row in cursor.fetchall()}
     return embeddings
 
 
@@ -38,7 +38,7 @@ def find_similar_users(db_connection: psycopg.Connection, target_user_id: int, t
             (target_user_id, target_user_id, top_k)
         )
         results = cursor.fetchall()
-    return [row[0] for row in results] 
+    return [row["user_id"] for row in results] 
 
 
 def get_user_embedding(db_connection: psycopg.Connection, user_id: int) -> np.ndarray | None:
@@ -52,7 +52,7 @@ def get_user_embedding(db_connection: psycopg.Connection, user_id: int) -> np.nd
     with db_connection.cursor() as cursor:
         cursor.execute("SELECT user_embedding FROM users WHERE user_id = %s", (user_id,))
         result = cursor.fetchone()
-    return np.array(result[0]) if result else None
+    return np.array(result["user_embedding"]) if result else None
 
 
 def recommend_related_embedding(db_connection: psycopg.Connection, user_id: int, top_k: int = 5)-> list[int]:
@@ -74,7 +74,7 @@ def recommend_related_embedding(db_connection: psycopg.Connection, user_id: int,
             """,
             (user_id,)
         )
-        user_purchased = set(row[0] for row in cursor.fetchall())
+        user_purchased = set(row["product_id"] for row in cursor.fetchall())
 
         recommended_products = set()
         for similar_user_id in similar_users:
@@ -86,7 +86,7 @@ def recommend_related_embedding(db_connection: psycopg.Connection, user_id: int,
                 """,
                 (similar_user_id,)
             )
-            similar_user_products = set(row[0] for row in cursor.fetchall())
+            similar_user_products = set(row["product_id"] for row in cursor.fetchall())
 
             recommended_products.update(similar_user_products - user_purchased)
 
@@ -115,7 +115,7 @@ def recommend_related(db_connection: psycopg.Connection, user_id: int, top_k: in
             """,
             (user_id,)
         )
-        user_products = set(row[0] for row in cursor.fetchall())
+        user_products = set(row["product_id"] for row in cursor.fetchall())
         
         if not user_products:
             return []  # 如果用户没有购买记录，直接返回空列表
@@ -129,7 +129,7 @@ def recommend_related(db_connection: psycopg.Connection, user_id: int, top_k: in
             """,
             (list(user_products), user_id)
         )
-        related_users = set(row[0] for row in cursor.fetchall())
+        related_users = set(row["user_id"] for row in cursor.fetchall())
 
         if not related_users:
             return []  # 如果没有其他用户买过相同的商品，返回空列表
@@ -145,7 +145,7 @@ def recommend_related(db_connection: psycopg.Connection, user_id: int, top_k: in
             (list(related_users),)
         )
         for row in cursor.fetchall():
-            product_id = row[0]
+            product_id = row["product_id"]
             if product_id not in user_products:  # 排除用户已经购买的商品
                 recommended_products.add(product_id)
             if len(recommended_products) >= top_k:
@@ -174,7 +174,7 @@ def recommend_embedding(db_connection: psycopg.Connection, user_id: int, top_k: 
             (user_id, top_k)
         )
         results = cursor.fetchall()
-        products = set(row[0] for row in results)
+        products = set(row["product_id"] for row in results)
     return list(products)
 
 def recommend(db_connection: psycopg.Connection, user_id: int, method: str, top_k: int=5) -> list[int]:
