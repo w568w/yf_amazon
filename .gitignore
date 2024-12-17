@@ -3,3 +3,4 @@ data/*.csv
 *.pkl
 *.npy
 backend/model
+__pycache__
