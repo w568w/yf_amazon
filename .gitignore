@@ -4,3 +4,6 @@ data/*.csv
 *.npy
 backend/model
 __pycache__
+.DS_Store
+node_modules
+.next
