@@ -47,7 +47,8 @@ CREATE INDEX ON ratings USING hnsw (doc_embedding vector_cosine_ops);
 
 SQL_CREATE_VIEW_USERS = """
 CREATE MATERIALIZED VIEW users (user_id, user_embedding) AS
-SELECT user_id, AVG(doc_embedding)::vector(1536) FROM ratings WHERE doc_embedding IS NOT NULL GROUP BY user_id;
+SELECT user_id, AVG(p.title_embedding)::vector(1536) FROM ratings r JOIN products p ON r.product_id = p.product_id
+WHERE p.title_embedding IS NOT NULL GROUP BY r.user_id;
 """
 
 SQL_CREATE_INDEX_HNSW_PRODUCTS = """
