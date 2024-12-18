@@ -225,7 +225,7 @@ class RecommendRequest(BaseModel):
 class RecommendResponse(BaseModel):
     user_id: int
     method: str
-    recommendations: List[int]
+    recommendations: List[Any]
 
 
 @app.post("/recommend", response_model=RecommendResponse)
@@ -242,6 +242,14 @@ async def recommend_api(request: RecommendRequest, db_connection=Depends(get_db)
         recommendations = recommend(db_connection, user_id, method, top_k)
 
         # 返回推荐结果
+        with db_connection.cursor() as cur:
+            cur.execute(
+                """
+                SELECT name, product_id, amazon_id FROM products WHERE product_id = ANY(%s)
+                """,
+                (recommendations,),
+            )
+            recommendations = cur.fetchall()
         return RecommendResponse(
             user_id=user_id, method=method, recommendations=recommendations
         )
