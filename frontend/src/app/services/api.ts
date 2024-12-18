@@ -42,8 +42,10 @@ export async function getRatings(productId: number, topk: number, backend: strin
     product_id: productId.toString(),
     topk: topk.toString(),
     backend: backend,
-    user_id: userId?.toString() || ''
   })
+  if (userId) {
+    queryParams.append('user_id', userId.toString())
+  }
 
   try {
     const response = await fetch(`${API_BASE_URL}/ratings?${queryParams}`, {
