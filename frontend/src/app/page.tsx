@@ -71,10 +71,23 @@ export default function Home() {
         setRecommendations([])
     }, [view])
 
-    const handleUserIdClick = (id: number) => {
-        setUserId(id)
+    const handleUserIdClick = async (id: number) => {
         setView('searchReview')
-        handleSearch()
+        setUserId(id)
+        setProductId(-1)
+        setSearchTerm('')
+        setIsLoading(true)
+        const startTime = performance.now()
+        try {
+            const results = await getRatings(productId, searchConfig.topk, searchConfig.backend, userId)
+            setReviews(results)
+        } catch (error) {
+            console.error('Search error:', error)
+        } finally {
+            setIsLoading(false)
+        }
+        const endTime = performance.now()
+        setExecTime(endTime - startTime)
     }
 
     return (
@@ -200,7 +213,6 @@ export default function Home() {
                                             type="number"
                                             value={userId}
                                             onChange={(e) => setUserId(parseInt(e.target.value))}
-                                            onClick={() => handleUserIdClick(userId)}
                                             className="px-4 py-2 rounded-lg border border-gray-200"
                                         />
                                     </div>
@@ -271,16 +283,22 @@ export default function Home() {
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         {view === 'recommendation'
                             ? recommendations.map((product) => (
-                                <ProductCard key={product.product_id} product={product} />
+                                <ProductCard key={product.product_id} product={product} handleUserIdClick={handleUserIdClick} />
                             ))
                             : view === 'searchReview'
                                 ? reviews.map((review) => (
                                     <RatingCard key={review.product_id + review.user_id} review={review} />
                                 ))
                                 : products.map((product) => (
-                                    <ProductCard key={product.product_id} product={product} />
+                                    <ProductCard key={product.product_id} product={product} handleUserIdClick={handleUserIdClick} />
                                 ))
                         }
+                    </div>
+                )}
+
+                {execTime && (
+                    <div className="text-center mt-8 text-gray-500">
+                        耗时: {execTime.toFixed(2)}ms
                     </div>
                 )}
             </div>

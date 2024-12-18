@@ -15,7 +15,7 @@ export async function searchProducts(params: SearchParams) {
     exact: params.exact.toString(),
     product_id: params.product_id.toString(),
     backend: params.backend,
-    topk: params.topk.toString()
+    top_k: params.topk.toString()
   })
 
   try {
@@ -39,12 +39,14 @@ export async function searchProducts(params: SearchParams) {
 
 export async function getRatings(productId: number, topk: number, backend: string, userId?: number) {
   const queryParams = new URLSearchParams({
-    product_id: productId.toString(),
-    topk: topk.toString(),
+    top_k: topk.toString(),
     backend: backend,
   })
   if (userId) {
     queryParams.append('user_id', userId.toString())
+  }
+  if (productId > 0) {
+    queryParams.append('product_id', productId.toString())
   }
 
   try {
@@ -70,7 +72,7 @@ export async function getRecommendations(userId: number, method: string, topk: n
   const body = {
     user_id: userId,
     method: method,
-    topk: topk,
+    top_k: topk,
     backend: backend
   }
 

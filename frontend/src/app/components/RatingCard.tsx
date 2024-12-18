@@ -7,6 +7,7 @@ interface Review {
     timestamp: number;
     title: string;
     comment: string;
+    name: string;
 }
 
 const RatingCard: React.FC<{ review: Review }> = ({ review }) => {
@@ -17,10 +18,13 @@ const RatingCard: React.FC<{ review: Review }> = ({ review }) => {
             <div className="flex items-center justify-between">
                 <h3 className="text-lg font-semibold text-gray-900">{review.title}</h3>
                 <div className="flex items-center">
-                    {/* 星级评分 */}
                     <span className="text-yellow-500">{'★'.repeat(review.rating)}</span>
                     <span className="ml-2 text-gray-500">({review.rating})</span>
                 </div>
+            </div>
+
+            <div className="text-sm text-gray-500">
+                <span>{review.name}</span>
             </div>
 
             <p className="text-gray-700">{review.comment}</p>

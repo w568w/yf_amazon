@@ -6,7 +6,7 @@ interface ProductCardProps {
     product: Product
 }
 
-export default function ProductCard({ product }: ProductCardProps) {
+export default function ProductCard({ product, handleUserIdClick }: ProductCardProps & { handleUserIdClick: (userId: number) => void }) {
     const [ratings, setRatings] = useState<Review[]>([])
     const [isLoading, setIsLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
@@ -98,8 +98,9 @@ export default function ProductCard({ product }: ProductCardProps) {
                                                 {'★'.repeat(rating.rating)}{'☆'.repeat(5 - rating.rating)}
                                             </div>
                                             {rating.comment && <p className="mt-1 text-gray-600">{rating.comment}</p>}
-                                            <div className="text-xs text-gray-500 mt-1">
+                                            <div className="text-xs text-gray-500 mt-1 flex justify-between">
                                                 <span>评论时间: {formatTimestamp(rating.timestamp)}</span>
+                                                <span onClick={() => handleUserIdClick(parseInt(rating.user_id))}>用户ID: {rating.user_id}</span>
                                             </div>
                                         </li>
                                     ))}
